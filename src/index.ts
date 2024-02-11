@@ -2,29 +2,74 @@
  * エントリポイントの関数
  */
 function main() {
-    console.log("hello, world.")
+    generateJsonFromSheet()
 }
 
-/**
- * 特定の範囲の値を取得する。
- */
-function getRangeValues() {
-    // スプレッドシートを開く
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    // "Sheet1" という名前のシートを取得
-    const sheet = spreadsheet.getSheetByName("Sheet1");
-    if (!sheet) {
-        throw new Error('Sheet "Sheet1" not found.');
-    }
-    // A1:C3 の範囲を取得
-    const range = sheet.getRange("A1:C3");
-    // 範囲の値を取得
+function generateJsonFromSheet() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const range = sheet.getDataRange();
     const values = range.getValues();
 
-    // 値をログに出力（デバッグ用）
-    console.log(values);
+    // JSONを生成
+    const json = {};
+    const keys = values[0]; // 1行目はキー情報
 
-    // 必要に応じて値を返すか、他の操作を行う
-    // [[1.0, 2.0, 3.0], [AAA, BBB, CCC], [XXX, YYY, ZZZ]]
-    return values;
+    for (let i = 1; i < values.length; i++) {
+        const row = values[i]; // データ行
+        keys.forEach((key, index) => {
+            const value = row[index];
+            setNestedValue(json, key, value);
+        });
+    }
+
+    // 結果のJSONをログ出力
+    console.log(JSON.stringify(json, null, 2));
+    return json;
+}
+
+export function setNestedValue(obj: Object, path: string, value: any) {
+    const keys = path.split('.');
+    let current: Object | string | number | any[] = obj;
+
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const keyNext: string | null = i != keys.length - 1 ? keys[i + 1] : null;
+        const isLast = i === keys.length - 1;
+
+        if (isLast) {
+            // 数値インデックスと解釈されるキーで配列に値をセット
+            if (isArrayIndex(key)) {
+                const index = parseInt(key, 10);
+                // 現在の位置が配列でなければ初期化
+                if (!Array.isArray(current)) {
+                    current = [];
+                }
+                current[index] = value;
+            } else {
+                current[key] = value;
+            }
+        } else {
+            if (isArrayIndex(key)) {
+                const index = parseInt(key, 10);
+                // 配列の初期化または既存配列の使用
+                if (!Array.isArray(current)) {
+                    current = [];
+                }
+                current[index] = current[index] || {};
+                current = current[index];
+            } else {
+                // console.log("key", key)
+                // console.log("current[key]", current[key])
+                if (current[key] == null && keyNext != null) {
+                    current[key] = isArrayIndex(keyNext) ? [] : {}
+                }
+                current = current[key];
+            }
+        }
+    }
+}
+
+function isArrayIndex(key: string) {
+    const number = parseInt(key, 10);
+    return !isNaN(number) && number.toString() === key;
 }
