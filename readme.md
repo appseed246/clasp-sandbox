@@ -6,6 +6,8 @@
 npm install -g @google/clasp
 ```
 
+または npx で呼び出しできるようにする。
+
 ## sheets app
 
 - Init
